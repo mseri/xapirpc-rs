@@ -1,0 +1,9 @@
+[package]
+authors = ["Marcello Seri <marcello.seri@citrix.com>"]
+name = "xapirpc"
+version = "0.1.0"
+
+[dependencies]
+clap = "2.27.1"
+reqwest = "0.7.3"
+xmlrpc = "0.7.1"
