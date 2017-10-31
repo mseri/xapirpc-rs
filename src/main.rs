@@ -107,8 +107,15 @@ fn main() {
         .unwrap() // Response
         .unwrap(); // Result
     let session = extract_session(hopefully_session);
-
     println!("Session: \"{}\"", session);
+
+    let cmd = format!("{}.{}", class, method);
+    let mut req = Request::new(&cmd).arg(session.clone());
+    for arg in args {
+        req = req.arg(arg);
+    }
+    let response = req.call(&client, host).unwrap().unwrap();
+    println!("Response: {:?}", response);
 
     let close = Request::new("session.logout").arg(session).call(&client, host);
     println!("Closed? {:?}", close);
