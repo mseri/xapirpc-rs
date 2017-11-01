@@ -23,20 +23,20 @@ fn to_value(value: &str) -> Value {
 }
 
 
-fn extract_session(res: Value) -> String {
-    if let Value::Struct(response) = res {
-        response.get("Value")
-            .map(|val|
-                 {
-                     if let Value::String(ref session) = *val {
-                         session.clone()
-                     } else {
-                         panic!("Mismatched type: {:?}", val)
-                     }
-                 })
-        .unwrap()
+fn get_value(res: &Value) -> &Value {
+    if let Value::Struct(ref response) = *res {
+        &response["Value"]
     } else {
-        panic!("Error: {:?}", res)
+        panic!("Malformed response: {:?}", res)
+    }
+}
+
+fn extract_session(res: Value) -> String {
+    let value = get_value(&res);
+    if let Value::String(ref session) = *value {
+        session.clone()
+    } else {
+        panic!("Mismatched type: {:?}", value)
     }
 }
 
@@ -99,7 +99,7 @@ fn main() {
     .into_iter()
         .map(|a| to_value(&a));
 
-    let client = Client::new().unwrap();
+    let client = Client::new();
 
     // Let's panic all the way!!!
     let hopefully_session = Request::new("session.login_with_password").arg(user).arg(pass)
@@ -107,16 +107,21 @@ fn main() {
         .unwrap() // Response
         .unwrap(); // Result
     let session = extract_session(hopefully_session);
-    println!("Session: \"{}\"", session);
+    //println!("Session: \"{}\"", session);
 
+    // Prepare the xmlrpc command
     let cmd = format!("{}.{}", class, method);
     let mut req = Request::new(&cmd).arg(session.clone());
     for arg in args {
         req = req.arg(arg);
     }
-    let response = req.call(&client, host).unwrap().unwrap();
-    println!("Response: {:?}", response);
 
-    let close = Request::new("session.logout").arg(session).call(&client, host);
-    println!("Closed? {:?}", close);
+    //let mut body = Vec::new();
+    //req.write_as_xml(&mut body).unwrap();
+    //println!("{}", std::str::from_utf8(&body).unwrap());
+
+    let response = req.call(&client, host).unwrap().unwrap();
+    println!("{:?}", get_value(&response));
+
+    let _ = Request::new("session.logout").arg(session).call(&client, host);
 }

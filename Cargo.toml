@@ -5,5 +5,5 @@ version = "0.1.0"
 
 [dependencies]
 clap = "2.27.1"
-reqwest = "0.7.3"
-xmlrpc = "0.7.1"
+reqwest = "0.8.0"
+xmlrpc = { git = "https://github.com/jonas-schievink/xml-rpc-rs" }
