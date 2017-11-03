@@ -1,0 +1,3 @@
+- Add output pretty print
+- Add support for records and arrays (maybe?)
+- Generate and use typesafe API bindings
