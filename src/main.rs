@@ -47,7 +47,7 @@ fn extract_session(res: Value) -> String {
     }
 }
 
-fn write_as_json<W: Write>(value: &Value, fmt: &mut W) -> io::Result<()> {
+fn write_as_json<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Result<()> {
 
     match *value {
         Value::Int(i) => {
@@ -73,25 +73,34 @@ fn write_as_json<W: Write>(value: &Value, fmt: &mut W) -> io::Result<()> {
         }
         Value::Struct(ref map) => {
             if map.is_empty() {
-                writeln!(fmt, "{{}}")?;
+                writeln!(fmt, "{:indent$}{{}}", "", indent=level)?;
             } else {
-                writeln!(fmt, "{{")?;
+                writeln!(fmt, "{:indent$}{{", "", indent=level)?;
                 for (ref name, ref value) in map {
-                    write!(fmt, "{}: ", name)?;
-                    write_as_json(value, fmt)?;
+                    write!(fmt, "{:indent$}{}: ", "", name, indent=level+2)?;
+                    match *value {
+                        &Value::Struct(ref v) if v.is_empty() => writeln!(fmt, "{{}}")?,
+                        &Value::Array(ref v) if v.is_empty() => writeln!(fmt, "{{}}")?,
+                        &Value::Struct(_) | &Value::Array(_) => {
+                            writeln!(fmt, "")?;
+                            write_as_json(value, fmt, level+4)?;
+                            writeln!(fmt, "")?
+                        },
+                        _ => write_as_json(value, fmt, level+4)?
+                    };
                 }
-                writeln!(fmt, "}}")?;
+                writeln!(fmt, "{:indent$}}}", "", indent=level)?;
             }
         }
         Value::Array(ref array) => {
             if array.is_empty() {
-                writeln!(fmt, "[]")?;
+                writeln!(fmt, "{:indent$}[]", "", indent=level)?;
             } else {
-                writeln!(fmt, "[")?;
+                writeln!(fmt, "{:indent$}[", "", indent=level)?;
                 for value in array {
-                    write_as_json(value, fmt)?;
+                    write_as_json(value, fmt, level+2)?;
                 }
-                writeln!(fmt, "]")?;
+                writeln!(fmt, "{:indent$}]", "", indent=level)?;
             }
         }
         Value::Nil => {
@@ -186,7 +195,7 @@ fn main() {
     // Again, we unwrap the Response and then the Result
     // don't care about the panics right now.
     let response = req.call(&client, host).unwrap().unwrap();
-    write_as_json(get_value(&response), &mut io::stdout()).unwrap();
+    write_as_json(get_value(&response), &mut io::stdout(), 0).unwrap();
 
     let _ =
         Request::new("session.logout")
