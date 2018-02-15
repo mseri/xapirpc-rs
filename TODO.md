@@ -1,3 +1,3 @@
-- Add output pretty print
+- Add output pretty print in valid json
 - Add support for records and arrays (maybe?)
 - Generate and use typesafe API bindings
