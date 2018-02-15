@@ -4,6 +4,7 @@ name = "xapirpc"
 version = "0.1.0"
 
 [dependencies]
+base64 = "0.9.0"
 clap = "2.27.1"
 reqwest = "0.8.0"
-xmlrpc = { git = "https://github.com/jonas-schievink/xml-rpc-rs" }
+xmlrpc = "0.9.0"

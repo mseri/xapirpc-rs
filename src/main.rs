@@ -1,9 +1,12 @@
+extern crate base64;
 extern crate clap;
 extern crate reqwest;
 extern crate xmlrpc;
 
 use std::str::FromStr;
+use std::io::{self, Write};
 
+use base64::encode;
 use clap::{Arg, App};
 use xmlrpc::{Request, Value};
 use reqwest::Client;
@@ -42,6 +45,61 @@ fn extract_session(res: Value) -> String {
     } else {
         panic!("Mismatched type: {:?}", value)
     }
+}
+
+fn write_as_json<W: Write>(value: &Value, fmt: &mut W) -> io::Result<()> {
+
+    match *value {
+        Value::Int(i) => {
+            writeln!(fmt, "{}", i)?;
+        }
+        Value::Int64(i) => {
+            writeln!(fmt, "{}", i)?;
+        }
+        Value::Bool(b) => {
+            writeln!(fmt, "{}", b)?;
+        }
+        Value::String(ref s) => {
+            writeln!(fmt, "{}", s)?;
+        }
+        Value::Double(d) => {
+            writeln!(fmt, "{}", d)?;
+        }
+        Value::DateTime(date_time) => {
+            writeln!(fmt, "{:?}", date_time)?;
+        }
+        Value::Base64(ref data) => {
+            writeln!(fmt, "{}", encode(data))?;
+        }
+        Value::Struct(ref map) => {
+            if map.is_empty() {
+                writeln!(fmt, "{{}}")?;
+            } else {
+                writeln!(fmt, "{{")?;
+                for (ref name, ref value) in map {
+                    write!(fmt, "{}: ", name)?;
+                    write_as_json(value, fmt)?;
+                }
+                writeln!(fmt, "}}")?;
+            }
+        }
+        Value::Array(ref array) => {
+            if array.is_empty() {
+                writeln!(fmt, "[]")?;
+            } else {
+                writeln!(fmt, "[")?;
+                for value in array {
+                    write_as_json(value, fmt)?;
+                }
+                writeln!(fmt, "]")?;
+            }
+        }
+        Value::Nil => {
+            writeln!(fmt, "()")?;
+        }
+    }
+
+    Ok(())
 }
 
 
@@ -102,7 +160,7 @@ fn main() {
     } else {
         Vec::new()
     }.into_iter()
-        .map(|a| to_value(&a));
+    .map(|a| to_value(&a));
 
     let client = Client::new();
 
@@ -128,7 +186,7 @@ fn main() {
     // Again, we unwrap the Response and then the Result
     // don't care about the panics right now.
     let response = req.call(&client, host).unwrap().unwrap();
-    println!("{:?}", get_value(&response));
+    write_as_json(get_value(&response), &mut io::stdout()).unwrap();
 
     let _ =
         Request::new("session.logout")
