@@ -2,6 +2,13 @@
 authors = ["Marcello Seri <marcello.seri@citrix.com>"]
 name = "xapirpc"
 version = "0.2.0"
+homepage = "https://github.com/mseri/xapirpc-rs"
+repository = "https://github.com/mseri/xapirpc-rs.git"
+readme = "README.md"
+description = "Minimal RPC client for communication with xapi"
+keywords = ["xapi", "xen-api", "xmlrpc"]
+license = "MIT"
+license-file = "LICENSE.md"
 
 [dependencies]
 base64 = "0.9.0"
