@@ -32,4 +32,14 @@ ARGS:
 
 ```
 
+The `host`, `user` and `pass` value can be manually configured by creating
+```
+$HOME/.config/xapirpc/config.prefs.json
+```
+and adding them in a json object. E.g.
+```bash
+$ cat $HOME/.config/xapirpc/config.prefs.json
+{"user":"my_user_name","pass":"my_pass"}
+```
+
 To try it, clone this repository and build with `cargo build --release` or install it using `cargo install xapirpc --force`.

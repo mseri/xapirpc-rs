@@ -1,6 +1,10 @@
 extern crate base64;
+
+#[macro_use]
 extern crate clap;
+
 extern crate iso8601;
+extern crate preferences;
 extern crate reqwest;
 extern crate serde_json;
 extern crate xmlrpc;
@@ -9,9 +13,13 @@ use std::str::FromStr;
 
 use base64::encode;
 use clap::{Arg, App};
-use xmlrpc::{Request, Value};
+use preferences::{AppInfo, Preferences, PreferencesMap};
 use reqwest::Client;
 use serde_json::value as json;
+use xmlrpc::{Request, Value};
+
+
+const APP_INFO: AppInfo = AppInfo{name: "xapirpc", author: "xapirpc"};
 
 fn to_value(value: &str) -> Value {
     bool::from_str(value)
@@ -112,6 +120,7 @@ fn as_json(value: &Value) -> json::Value {
 fn main() {
     let matches = App::new("Minimal xapi xmlrpc CLI client")
         .about("CLI interface to interrogate an instance of XenServer via xmlrpc")
+        .version(crate_version!())
         .arg(Arg::with_name("host")
              .long("host")
              .value_name("HOST")
@@ -155,9 +164,23 @@ fn main() {
              .multiple(true))
         .get_matches();
 
-    let host = matches.value_of("host").unwrap_or("http://127.0.0.1");
-    let user = matches.value_of("user").unwrap_or("guest");
-    let pass = matches.value_of("pass").unwrap_or("guest");
+    let host_default = "http://127.0.0.1".to_string();
+    let user_default = "guest".to_string();
+    let pass_default = "guest".to_string();
+
+    let preferences = PreferencesMap::<String>::load(&APP_INFO, "config").unwrap_or(
+        PreferencesMap::<String>::new()
+        //config.insert("user".into(), "guest".into());
+        //config.insert("pass".into(), "guest".into());
+        //config.inster("host".into(), "http://127.0.0.1".into());
+        );
+
+    let host = matches.value_of("host").unwrap_or(
+        preferences.get("host").unwrap_or(&host_default));
+    let user = matches.value_of("user").unwrap_or(
+        preferences.get("user").unwrap_or(&user_default));
+    let pass = matches.value_of("pass").unwrap_or(
+        preferences.get("pass").unwrap_or(&pass_default));
 
     // These are compulsory parameters. unwrapping here is fine
     let class = matches.value_of("class").unwrap();
