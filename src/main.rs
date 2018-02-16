@@ -1,5 +1,6 @@
 extern crate base64;
 extern crate clap;
+extern crate iso8601;
 extern crate reqwest;
 extern crate serde_json;
 extern crate xmlrpc;
@@ -29,7 +30,6 @@ fn to_value(value: &str) -> Value {
 
 // The two functions below should be changed to return a Result
 // instead of panicking
-
 fn get_value(res: &Value) -> &Value {
     if let Value::Struct(ref response) = *res {
         &response["Value"]
@@ -44,6 +44,21 @@ fn extract_session(res: Value) -> String {
         session.clone()
     } else {
         panic!("Mismatched type: {:?}", value)
+    }
+}
+
+// From xmlrpc-rs' utils.rs
+pub fn format_datetime(date_time: &iso8601::DateTime) -> String {
+    let iso8601::Time { hour, minute, second, .. } = date_time.time;
+
+    match date_time.date {
+        iso8601::Date::YMD { year, month, day } => {
+            format!("{:04}{:02}{:02}T{:02}:{:02}:{:02}",
+                year, month, day,
+                hour, minute, second
+            )
+        }
+        _ => { unimplemented!() }
     }
 }
 
@@ -68,7 +83,7 @@ fn as_json(value: &Value) -> json::Value {
             json::Value::Number(d)
         }
         Value::DateTime(date_time) => {
-            json::Value::String(format!("{:?}", date_time))
+            json::Value::String(format_datetime(&date_time))
         }
         Value::Base64(ref data) => {
             json::Value::String(encode(data))
@@ -93,6 +108,7 @@ fn as_json(value: &Value) -> json::Value {
         }
     }
 }
+
 fn main() {
     let matches = App::new("Dummy xapi xmlrpc CLI client")
         .version("0.1")
