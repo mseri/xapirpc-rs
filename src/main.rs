@@ -248,13 +248,15 @@ fn main() {
     // Again, we unwrap the Response and then the Result
     // don't care about the panics right now.
     let response = req.call(&client, host).unwrap().unwrap();
+    let value = get_value(&response);
+
     if matches.is_present("json") {
-        let j = serde_json::to_string(
-            &as_json(&response)
+        let j = serde_json::to_string_pretty(
+            &as_json(value)
             ).unwrap();
         println!("{}", j);
     } else {
-        write_nicely(get_value(&response), &mut io::stdout(), 0).unwrap();
+        write_nicely(value, &mut io::stdout(), 0).unwrap();
     }
 
     let _ =
