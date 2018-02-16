@@ -1,6 +1,7 @@
 extern crate base64;
 extern crate clap;
 extern crate reqwest;
+extern crate serde_json;
 extern crate xmlrpc;
 
 use std::str::FromStr;
@@ -10,7 +11,7 @@ use base64::encode;
 use clap::{Arg, App};
 use xmlrpc::{Request, Value};
 use reqwest::Client;
-
+use serde_json::value as json;
 
 fn to_value(value: &str) -> Value {
     bool::from_str(value)
@@ -47,7 +48,52 @@ fn extract_session(res: Value) -> String {
     }
 }
 
-fn write_as_json<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Result<()> {
+fn as_json(value: &Value) -> json::Value {
+    match *value {
+        Value::Int(i) => {
+            let i = json::Number::from_f64(i as f64).unwrap();
+            json::Value::Number(i)
+        }
+        Value::Int64(i) => {
+            let i = json::Number::from_f64(i as f64).unwrap();
+            json::Value::Number(i)
+        }
+        Value::Bool(b) => {
+            json::Value::Bool(b)
+        }
+        Value::String(ref s) => {
+            json::Value::String(s.clone())
+        }
+        Value::Double(d) => {
+            let d = json::Number::from_f64(d).unwrap();
+            json::Value::Number(d)
+        }
+        Value::DateTime(date_time) => {
+            json::Value::String(format!("{:?}", date_time))
+        }
+        Value::Base64(ref data) => {
+            json::Value::String(encode(data))
+        }
+        Value::Struct(ref map) => {
+            let mut jmap = serde_json::Map::with_capacity(map.len());
+            for (ref name, ref value) in map {
+                jmap.insert(
+                    name.to_string().clone(),
+                    as_json(value)
+                    );
+            };
+            json::Value::Object(jmap)
+        }
+        Value::Array(ref array) => {
+            json::Value::Array(
+                array.iter().map(|v| as_json(v)).collect()
+                )
+        }
+        Value::Nil => {
+            json::Value::Null
+        }
+    }
+}
 
 fn write_nicely<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Result<()> {
     match *value {
@@ -142,6 +188,10 @@ fn main() {
              .help("XenServer host user password. Can be passed with the \
                    XAPI_PASSWORD env variable.")
              .takes_value(true))
+        .arg(Arg::with_name("json")
+             .short("j")
+             .help("Output the result as json.")
+            )
         .arg(Arg::with_name("class")
              .value_name("CLASS")
              .help("Case sensitive value for the xapi class.")
@@ -198,7 +248,14 @@ fn main() {
     // Again, we unwrap the Response and then the Result
     // don't care about the panics right now.
     let response = req.call(&client, host).unwrap().unwrap();
-    write_as_json(get_value(&response), &mut io::stdout(), 0).unwrap();
+    if matches.is_present("json") {
+        let j = serde_json::to_string(
+            &as_json(&response)
+            ).unwrap();
+        println!("{}", j);
+    } else {
+        write_nicely(get_value(&response), &mut io::stdout(), 0).unwrap();
+    }
 
     let _ =
         Request::new("session.logout")
