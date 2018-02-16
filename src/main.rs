@@ -5,7 +5,6 @@ extern crate serde_json;
 extern crate xmlrpc;
 
 use std::str::FromStr;
-use std::io::{self, Write};
 
 use base64::encode;
 use clap::{Arg, App};
@@ -94,73 +93,6 @@ fn as_json(value: &Value) -> json::Value {
         }
     }
 }
-
-fn write_nicely<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Result<()> {
-    match *value {
-        Value::Int(i) => {
-            writeln!(fmt, "{}", i)?;
-        }
-        Value::Int64(i) => {
-            writeln!(fmt, "{}", i)?;
-        }
-        Value::Bool(b) => {
-            writeln!(fmt, "{}", b)?;
-        }
-        Value::String(ref s) => {
-            writeln!(fmt, "{}", s)?;
-        }
-        Value::Double(d) => {
-            writeln!(fmt, "{}", d)?;
-        }
-        Value::DateTime(date_time) => {
-            writeln!(fmt, "{:?}", date_time)?;
-        }
-        Value::Base64(ref data) => {
-            writeln!(fmt, "{}", encode(data))?;
-        }
-        Value::Struct(ref map) => {
-            if map.is_empty() {
-                writeln!(fmt, "{:indent$}{{}}", "", indent=level)?;
-            } else {
-                writeln!(fmt, "{:indent$}{{", "", indent=level)?;
-                for (ref name, ref value) in map {
-                    write!(fmt, "{:indent$}{}: ", "", name, indent=level+2)?;
-                    match *value {
-                        &Value::Struct(ref v) if v.is_empty() => writeln!(fmt, "{{}}")?,
-                        &Value::Array(ref v) if v.is_empty() => writeln!(fmt, "{{}}")?,
-                        &Value::Struct(_) | &Value::Array(_) => {
-                            writeln!(fmt, "")?;
-                            write_nicely(value, fmt, level+4)?;
-                            writeln!(fmt, "")?
-                        },
-                        _ => write_nicely(value, fmt, level+4)?
-                    };
-                }
-                writeln!(fmt, "{:indent$}}}", "", indent=level)?;
-            }
-        }
-        Value::Array(ref array) => {
-            if array.is_empty() {
-                writeln!(fmt, "{:indent$}[]", "", indent=level)?;
-            } else {
-                writeln!(fmt, "{:indent$}[", "", indent=level)?;
-                for value in array {
-                    write!(fmt, "{:indent$}", "", indent=level+2)?;
-                    write_nicely(value, fmt, level+2)?;
-                }
-                writeln!(fmt, "{:indent$}]", "", indent=level)?;
-            }
-        }
-        Value::Nil => {
-            writeln!(fmt, "()")?;
-        }
-    }
-
-    Ok(())
-}
-
-
-
 fn main() {
     let matches = App::new("Dummy xapi xmlrpc CLI client")
         .version("0.1")
@@ -188,9 +120,9 @@ fn main() {
              .help("XenServer host user password. Can be passed with the \
                    XAPI_PASSWORD env variable.")
              .takes_value(true))
-        .arg(Arg::with_name("json")
-             .short("j")
-             .help("Output the result as json.")
+        .arg(Arg::with_name("compact")
+             .long("compact")
+             .help("Output the result as non-prettified json.")
             )
         .arg(Arg::with_name("class")
              .value_name("CLASS")
@@ -248,16 +180,14 @@ fn main() {
     // Again, we unwrap the Response and then the Result
     // don't care about the panics right now.
     let response = req.call(&client, host).unwrap().unwrap();
-    let value = get_value(&response);
 
-    if matches.is_present("json") {
-        let j = serde_json::to_string_pretty(
-            &as_json(value)
-            ).unwrap();
-        println!("{}", j);
+    let json_value = as_json(get_value(&response));
+    let j = if matches.is_present("compact") {
+        serde_json::to_string(&json_value)
     } else {
-        write_nicely(value, &mut io::stdout(), 0).unwrap();
-    }
+        serde_json::to_string_pretty(&json_value)
+    };
+    println!("{}", j.unwrap());
 
     let _ =
         Request::new("session.logout")
