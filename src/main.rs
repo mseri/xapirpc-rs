@@ -110,9 +110,7 @@ fn as_json(value: &Value) -> json::Value {
 }
 
 fn main() {
-    let matches = App::new("Dummy xapi xmlrpc CLI client")
-        .version("0.1")
-        .author("Marcello S. <marcello.seri@citrix.com>")
+    let matches = App::new("Minimal xapi xmlrpc CLI client")
         .about("CLI interface to interrogate an instance of XenServer via xmlrpc")
         .arg(Arg::with_name("host")
              .long("host")
