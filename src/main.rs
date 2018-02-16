@@ -49,6 +49,7 @@ fn extract_session(res: Value) -> String {
 
 fn write_as_json<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Result<()> {
 
+fn write_nicely<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Result<()> {
     match *value {
         Value::Int(i) => {
             writeln!(fmt, "{}", i)?;
@@ -83,10 +84,10 @@ fn write_as_json<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Resu
                         &Value::Array(ref v) if v.is_empty() => writeln!(fmt, "{{}}")?,
                         &Value::Struct(_) | &Value::Array(_) => {
                             writeln!(fmt, "")?;
-                            write_as_json(value, fmt, level+4)?;
+                            write_nicely(value, fmt, level+4)?;
                             writeln!(fmt, "")?
                         },
-                        _ => write_as_json(value, fmt, level+4)?
+                        _ => write_nicely(value, fmt, level+4)?
                     };
                 }
                 writeln!(fmt, "{:indent$}}}", "", indent=level)?;
@@ -98,7 +99,8 @@ fn write_as_json<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Resu
             } else {
                 writeln!(fmt, "{:indent$}[", "", indent=level)?;
                 for value in array {
-                    write_as_json(value, fmt, level+2)?;
+                    write!(fmt, "{:indent$}", "", indent=level+2)?;
+                    write_nicely(value, fmt, level+2)?;
                 }
                 writeln!(fmt, "{:indent$}]", "", indent=level)?;
             }
@@ -110,6 +112,7 @@ fn write_as_json<W: Write>(value: &Value, fmt: &mut W, level: usize) -> io::Resu
 
     Ok(())
 }
+
 
 
 fn main() {
