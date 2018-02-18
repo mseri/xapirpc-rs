@@ -19,40 +19,20 @@ use serde_json::value as json;
 use xmlrpc::{Request, Value};
 
 
-const APP_INFO: AppInfo = AppInfo{name: "xapirpc", author: "xapirpc"};
-
-fn to_value(value: &str) -> Value {
-    bool::from_str(value)
-        .map(|b| Value::Bool(b))
-        .unwrap_or(
-            i64::from_str(value)
-            .map(|i| Value::Int64(i))
-            .unwrap_or(
-                f64::from_str(value)
-                .map(|f| Value::Double(f))
-                .unwrap_or(
-                    Value::String(value.to_string())
-                    )))
-}
-
-
-// The two functions below should be changed to return a Result
-// instead of panicking
-fn get_value(res: &Value) -> &Value {
-    if let Value::Struct(ref response) = *res {
-        &response["Value"]
-    } else {
-        panic!("Malformed response: {:?}", res)
+fn heuristic_to_value(value: &str) -> Value {
+    if let Ok(b) = bool::from_str(value) {
+        return Value::Bool(b);
     }
-}
 
-fn extract_session(res: Value) -> String {
-    let value = get_value(&res);
-    if let Value::String(ref session) = *value {
-        session.clone()
-    } else {
-        panic!("Mismatched type: {:?}", value)
+    if let Ok(i) = i64::from_str(value) {
+        return Value::Int64(i);
     }
+
+    if let Ok(f) = f64::from_str(value) {
+        return Value::Double(f);
+    }
+
+    return Value::String(value.to_string());
 }
 
 // From xmlrpc-rs' utils.rs
@@ -70,49 +50,61 @@ pub fn format_datetime(date_time: &iso8601::DateTime) -> String {
     }
 }
 
-fn as_json(value: &Value) -> json::Value {
-    match *value {
-        Value::Int(i) => {
-            let i = json::Number::from_f64(i as f64).unwrap();
-            json::Value::Number(i)
+trait Helpers {
+    fn get_value(&self) -> &xmlrpc::Value;
+    fn extract_session(self) -> String;
+    fn as_json(&self) -> json::Value;
+}
+
+impl Helpers for xmlrpc::Value {
+    // The two functions below should be changed to return a Result
+    // instead of panicking
+    fn get_value(&self) -> &Value {
+        if let Value::Struct(ref response) = *self {
+            &response["Value"]
+        } else {
+            panic!("Malformed response: {:?}", self)
         }
-        Value::Int64(i) => {
-            let i = json::Number::from_f64(i as f64).unwrap();
-            json::Value::Number(i)
+    }
+
+    fn extract_session(self) -> String {
+        let value = self.get_value();
+        if let Value::String(ref session) = *value {
+            session.clone()
+        } else {
+            panic!("Mismatched type: {:?}", value)
         }
-        Value::Bool(b) => {
-            json::Value::Bool(b)
-        }
-        Value::String(ref s) => {
-            json::Value::String(s.clone())
-        }
-        Value::Double(d) => {
-            let d = json::Number::from_f64(d).unwrap();
-            json::Value::Number(d)
-        }
-        Value::DateTime(date_time) => {
-            json::Value::String(format_datetime(&date_time))
-        }
-        Value::Base64(ref data) => {
-            json::Value::String(encode(data))
-        }
-        Value::Struct(ref map) => {
-            let mut jmap = serde_json::Map::with_capacity(map.len());
-            for (ref name, ref value) in map {
-                jmap.insert(
-                    name.to_string().clone(),
-                    as_json(value)
-                    );
-            };
-            json::Value::Object(jmap)
-        }
-        Value::Array(ref array) => {
-            json::Value::Array(
-                array.iter().map(|v| as_json(v)).collect()
-                )
-        }
-        Value::Nil => {
-            json::Value::Null
+    }
+
+    fn as_json(&self) -> json::Value {
+        match *self {
+            Value::Int(i) => {
+                let i = json::Number::from_f64(i as f64).unwrap();
+                json::Value::Number(i)
+            }
+            Value::Int64(i) => {
+                let i = json::Number::from_f64(i as f64).unwrap();
+                json::Value::Number(i)
+            }
+            Value::Bool(b) => json::Value::Bool(b),
+            Value::String(ref s) => json::Value::String(s.clone()),
+            Value::Double(d) => {
+                let d = json::Number::from_f64(d).unwrap();
+                json::Value::Number(d)
+            }
+            Value::DateTime(date_time) => json::Value::String(format_datetime(&date_time)),
+            Value::Base64(ref data) => json::Value::String(encode(data)),
+            Value::Struct(ref map) => {
+                let mut jmap = serde_json::Map::with_capacity(map.len());
+                for (ref name, ref v) in map {
+                    jmap.insert(name.to_string().clone(), v.as_json());
+                }
+                json::Value::Object(jmap)
+            }
+            Value::Array(ref array) => {
+                json::Value::Array(array.iter().map(|v| v.as_json()).collect())
+            }
+            Value::Nil => json::Value::Null,
         }
     }
 }
@@ -191,7 +183,7 @@ fn main() {
     } else {
         Vec::new()
     }.into_iter()
-    .map(|a| to_value(&a));
+        .map(|a| heuristic_to_value(&a));
 
     let client = Client::new();
 
@@ -202,7 +194,7 @@ fn main() {
         .call(&client, host)
         .unwrap()  // Response
         .unwrap(); // Result
-    let session = extract_session(hopefully_session);
+    let session = hopefully_session.extract_session();
     //println!("Session: \"{}\"", session);
 
     // Prepare the xmlrpc command
@@ -218,7 +210,7 @@ fn main() {
     // don't care about the panics right now.
     let response = req.call(&client, host).unwrap().unwrap();
 
-    let json_value = as_json(get_value(&response));
+    let json_value = response.get_value().as_json();
     let j = if matches.is_present("compact") {
         serde_json::to_string(&json_value)
     } else {
