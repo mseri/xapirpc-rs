@@ -1,3 +1,4 @@
 - Add support for `-o` to store the output
+- Add proper error management
 - Add support for records and arrays (maybe?)
 - Generate and use typesafe API bindings
