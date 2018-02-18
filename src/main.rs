@@ -23,7 +23,7 @@ const APP_INFO: AppInfo = AppInfo {
     author: "xapirpc",
 };
 
-fn heuristic_to_value(value: &str) -> Value {
+fn as_value_heuristic(value: &str) -> Value {
     if let Ok(b) = bool::from_str(value) {
         return Value::Bool(b);
     }
@@ -208,7 +208,7 @@ fn main() {
     } else {
         Vec::new()
     }.into_iter()
-        .map(|a| heuristic_to_value(&a));
+        .map(|a| as_value_heuristic(&a));
 
     let client = Client::new();
 
