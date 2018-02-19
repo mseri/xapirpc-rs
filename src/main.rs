@@ -9,6 +9,7 @@ extern crate reqwest;
 extern crate serde_json;
 extern crate xmlrpc;
 
+use std::env;
 use std::str::FromStr;
 
 use base64::encode;
@@ -124,13 +125,13 @@ impl Helpers for xmlrpc::Value {
 /// Minimal xapi xmlrpc CLI client
 #[derive(Debug, StructOpt)]
 struct Cli {
-    /// XenServer host
+    /// XenServer host. Can be passed with the XAPI_HOST env variable.
     #[structopt(long = "host", short = "h")]
     host: Option<String>,
-    /// XenServer host user name
+    /// XenServer host user name. Can be passed with the XAPI_USER env variable.
     #[structopt(long = "user", short = "u")]
     user: Option<String>,
-    /// XenServer host user password
+    /// XenServer host user password. Can be passed with the XAPI_PASSWORD env variable.
     #[structopt(long = "pass", short = "p")]
     pass: Option<String>,
     /// Output the result as non-prettified json
@@ -153,18 +154,27 @@ main!(|cli_args: Cli| {
     let user_default = "guest".to_string();
     let pass_default = "guest".to_string();
 
+    let host_env = env::var("XAPI_HOST").ok();
     let host = cli_args
         .host
         .as_ref()
-        .unwrap_or(preferences.get("host").unwrap_or(&host_default));
+        .or(preferences.get("host"))
+        .or(host_env.as_ref())
+        .unwrap_or(&host_default);
+    let user_env = env::var("XAPI_USER").ok();
     let user = cli_args
         .user
         .as_ref()
-        .unwrap_or(preferences.get("user").unwrap_or(&user_default));
+        .or(preferences.get("user"))
+        .or(user_env.as_ref())
+        .unwrap_or(&user_default);
+    let pass_env = env::var("XAPI_PASSWORD").ok();
     let pass = cli_args
         .pass
         .as_ref()
-        .unwrap_or(preferences.get("pass").unwrap_or(&pass_default));
+        .or(preferences.get("pass"))
+        .or(pass_env.as_ref())
+        .unwrap_or(&pass_default);
 
     println!("args: {:?}", cli_args);
     let class = cli_args.class;
