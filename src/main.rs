@@ -1,7 +1,7 @@
 extern crate base64;
 
 #[macro_use]
-extern crate clap;
+extern crate quicli;
 
 extern crate iso8601;
 extern crate preferences;
@@ -12,8 +12,8 @@ extern crate xmlrpc;
 use std::str::FromStr;
 
 use base64::encode;
-use clap::{App, Arg};
 use preferences::{AppInfo, Preferences, PreferencesMap};
+use quicli::prelude::*;
 use reqwest::Client;
 use serde_json::value as json;
 use xmlrpc::{Request, Value};
@@ -116,72 +116,31 @@ impl Helpers for xmlrpc::Value {
     }
 }
 
-fn main() {
-    let matches = App::new("Minimal xapi xmlrpc CLI client")
-        .about("CLI interface to interrogate an instance of XenServer via xmlrpc")
-        .version(crate_version!())
-        .arg(
-            Arg::with_name("host")
-                .long("host")
-                .value_name("HOST")
-                .env("XAPI_HOST")
-                .help("XenServer host. Can be passed with the HOST env variable.")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("user")
-                .short("u")
-                .long("user")
-                .value_name("USER")
-                .env("XAPI_USER")
-                .help(
-                    "XenServer host user name. Can be passed with the \
-                     XAPI_USER env variable.",
-                )
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("pass")
-                .short("p")
-                .long("pass")
-                .value_name("PASSWORD")
-                .env("XAPI_PASSWORD")
-                .help(
-                    "XenServer host user password. Can be passed with the \
-                     XAPI_PASSWORD env variable.",
-                )
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("compact")
-                .long("compact")
-                .help("Output the result as non-prettified json."),
-        )
-        .arg(
-            Arg::with_name("class")
-                .value_name("CLASS")
-                .help("Case sensitive value for the xapi class.")
-                .required(true)
-                .index(1),
-        )
-        .arg(
-            Arg::with_name("method")
-                .value_name("METHOD")
-                .help("Case sensitive value for the xapi method.")
-                .required(true)
-                .index(2),
-        )
-        .arg(
-            Arg::with_name("args")
-                .value_name("ARGS")
-                .help(
-                    "Ordered list of arguments for the call (if any). \
-                     Do not pass a session.",
-                )
-                .multiple(true),
-        )
-        .get_matches();
+/// Minimal xapi xmlrpc CLI client
+#[derive(Debug, StructOpt)]
+struct Cli {
+    /// XenServer host
+    #[structopt(long = "host", short = "h")]
+    host: Option<String>,
+    /// XenServer host user name
+    #[structopt(long = "user", short = "u")]
+    user: Option<String>,
+    /// XenServer host user password
+    #[structopt(long = "pass", short = "p")]
+    pass: Option<String>,
+    /// Output the result as non-prettified json
+    #[structopt(long = "compact")]
+    compact: bool,
+    /// Case sensitive value for the xapi class
+    class: String,
+    /// Case sensitive value for the xapi method
+    method: String,
+    /// Ordered list of arguments for the call (if any). Do not pass a session.
+    #[structopt(parse(from_str = "as_value_heuristic"))]
+    args: Vec<Value>
+}
 
+main!(|cli_args: Cli| {
     let preferences = PreferencesMap::<String>::load(&APP_INFO, "config")
         .unwrap_or(PreferencesMap::<String>::new());
 
@@ -189,33 +148,24 @@ fn main() {
     let user_default = "guest".to_string();
     let pass_default = "guest".to_string();
 
-    let host = matches
-        .value_of("host")
-        .unwrap_or(preferences.get("host").unwrap_or(&host_default));
-    let user = matches
-        .value_of("user")
-        .unwrap_or(preferences.get("user").unwrap_or(&user_default));
-    let pass = matches
-        .value_of("pass")
-        .unwrap_or(preferences.get("pass").unwrap_or(&pass_default));
+    let host = cli_args.host
+        .as_ref().unwrap_or(preferences.get("host").unwrap_or(&host_default));
+    let user = cli_args.user
+        .as_ref().unwrap_or(preferences.get("user").unwrap_or(&user_default));
+    let pass = cli_args.pass
+        .as_ref().unwrap_or(preferences.get("pass").unwrap_or(&pass_default));
 
-    // These are compulsory parameters. unwrapping here is fine
-    let class = matches.value_of("class").unwrap();
-    let method = matches.value_of("method").unwrap();
-
-    let args = if matches.is_present("args") {
-        matches.values_of("args").unwrap().collect()
-    } else {
-        Vec::new()
-    }.into_iter()
-        .map(|a| as_value_heuristic(&a));
+    println!("args: {:?}", cli_args);
+    let class = cli_args.class;
+    let method = cli_args.method;
+    let args = cli_args.args;
 
     let client = Client::new();
 
     // Let's panic all the way!!!
     let hopefully_session = Request::new("session.login_with_password")
-        .arg(user).arg(pass)
-        .call(&client, host)
+        .arg(user.as_str()).arg(pass.as_str())
+        .call(&client, &host)
         .unwrap()  // Response
         .unwrap(); // Result
     let session = hopefully_session.extract_session();
@@ -230,10 +180,10 @@ fn main() {
 
     // Again, we unwrap the Response and then the Result
     // don't care about the panics right now.
-    let response = req.call(&client, host).unwrap().unwrap();
+    let response = req.call(&client, &host).unwrap().unwrap();
 
     let json_value = response.get_value().as_json();
-    let j = if matches.is_present("compact") {
+    let j = if cli_args.compact {
         serde_json::to_string(&json_value)
     } else {
         serde_json::to_string_pretty(&json_value)
@@ -242,5 +192,5 @@ fn main() {
 
     let _ = Request::new("session.logout")
         .arg(session)
-        .call(&client, host);
-}
+        .call(&client, &host);
+});
