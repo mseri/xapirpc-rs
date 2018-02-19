@@ -176,7 +176,6 @@ main!(|cli_args: Cli| {
         .or(pass_env.as_ref())
         .unwrap_or(&pass_default);
 
-    println!("args: {:?}", cli_args);
     let class = cli_args.class;
     let method = cli_args.method;
     let args = cli_args.args;
