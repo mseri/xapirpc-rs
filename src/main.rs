@@ -51,7 +51,12 @@ fn format_datetime(date_time: &iso8601::DateTime) -> String {
     match date_time.date {
         iso8601::Date::YMD { year, month, day } => format!(
             "{:04}{:02}{:02}T{:02}:{:02}:{:02}",
-            year, month, day, hour, minute, second
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second
         ),
         _ => unimplemented!(),
     }
@@ -137,7 +142,7 @@ struct Cli {
     method: String,
     /// Ordered list of arguments for the call (if any). Do not pass a session.
     #[structopt(parse(from_str = "as_value_heuristic"))]
-    args: Vec<Value>
+    args: Vec<Value>,
 }
 
 main!(|cli_args: Cli| {
@@ -148,12 +153,18 @@ main!(|cli_args: Cli| {
     let user_default = "guest".to_string();
     let pass_default = "guest".to_string();
 
-    let host = cli_args.host
-        .as_ref().unwrap_or(preferences.get("host").unwrap_or(&host_default));
-    let user = cli_args.user
-        .as_ref().unwrap_or(preferences.get("user").unwrap_or(&user_default));
-    let pass = cli_args.pass
-        .as_ref().unwrap_or(preferences.get("pass").unwrap_or(&pass_default));
+    let host = cli_args
+        .host
+        .as_ref()
+        .unwrap_or(preferences.get("host").unwrap_or(&host_default));
+    let user = cli_args
+        .user
+        .as_ref()
+        .unwrap_or(preferences.get("user").unwrap_or(&user_default));
+    let pass = cli_args
+        .pass
+        .as_ref()
+        .unwrap_or(preferences.get("pass").unwrap_or(&pass_default));
 
     println!("args: {:?}", cli_args);
     let class = cli_args.class;
