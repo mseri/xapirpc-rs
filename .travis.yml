@@ -1,0 +1,123 @@
+# Based on the "trust" template v0.1.2
+# https://github.com/japaric/trust/tree/v0.1.2
+
+dist: trusty
+language: rust
+services: docker
+sudo: required
+
+env:
+  global:
+    - CRATE_NAME=xapirpc
+
+matrix:
+  include:
+    # Android
+    #- env: TARGET=aarch64-linux-android DISABLE_TESTS=1
+    #- env: TARGET=arm-linux-androideabi DISABLE_TESTS=1
+    #- env: TARGET=armv7-linux-androideabi DISABLE_TESTS=1
+    #- env: TARGET=i686-linux-android DISABLE_TESTS=1
+    #- env: TARGET=x86_64-linux-android DISABLE_TESTS=1
+
+    # iOS
+    #- env: TARGET=aarch64-apple-ios DISABLE_TESTS=1
+    #  os: osx
+    #- env: TARGET=armv7-apple-ios DISABLE_TESTS=1
+    #  os: osx
+    #- env: TARGET=armv7s-apple-ios DISABLE_TESTS=1
+    #  os: osx
+    #- env: TARGET=i386-apple-ios DISABLE_TESTS=1
+    #  os: osx
+    #- env: TARGET=x86_64-apple-ios DISABLE_TESTS=1
+    #  os: osx
+
+    # Linux
+    - env: TARGET=aarch64-unknown-linux-gnu
+    - env: TARGET=arm-unknown-linux-gnueabi
+    - env: TARGET=armv7-unknown-linux-gnueabihf
+    #- env: TARGET=i686-unknown-linux-gnu
+    - env: TARGET=i686-unknown-linux-musl
+    #- env: TARGET=mips-unknown-linux-gnu
+    #- env: TARGET=mips64-unknown-linux-gnuabi64
+    #- env: TARGET=mips64el-unknown-linux-gnuabi64
+    #- env: TARGET=mipsel-unknown-linux-gnu
+    #- env: TARGET=powerpc-unknown-linux-gnu
+    #- env: TARGET=powerpc64-unknown-linux-gnu
+    #- env: TARGET=powerpc64le-unknown-linux-gnu
+    #- env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1
+    #- env: TARGET=x86_64-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-musl
+
+    # OSX
+    - env: TARGET=i686-apple-darwin
+      os: osx
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+
+    # *BSD
+    - env: TARGET=i686-unknown-freebsd DISABLE_TESTS=1
+    - env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
+    - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
+
+    # Windows
+    - env: TARGET=x86_64-pc-windows-gnu
+
+    # Bare metal
+    # These targets don't support std and as such are likely not suitable for
+    # most crates.
+    #- env: TARGET=thumbv6m-none-eabi
+    #- env: TARGET=thumbv7em-none-eabi
+    #- env: TARGET=thumbv7em-none-eabihf
+    #- env: TARGET=thumbv7m-none-eabi
+
+    # Testing other channels
+    #- env: TARGET=x86_64-unknown-linux-gnu
+    #  rust: nightly
+    #- env: TARGET=x86_64-apple-darwin
+    #  os: osx
+    #  rust: nightly
+
+before_install:
+  - set -e
+  - rustup self update
+
+install:
+  - sh ci/install.sh
+  - source ~/.cargo/env || true
+
+script:
+  - bash ci/script.sh
+
+after_script: set +e
+
+before_deploy:
+  - sh ci/before_deploy.sh
+
+deploy:
+  api_key:
+    secure: bIJZVmloC82dPS+EprfCr3FNpAGtdOfVj3QZXXtqUamufJjdYbyXdhnX9+czStOBgOniGSt3go3rdgcR5YED7ioaD5TT/FCLQZxIWL+WdsrHhWSOOn9OX85CsBzsWDOqTTsAtzR5SQGZedxJzY4QOJ+FJFbekfyrpV+9eQ4ELSjgd5hepUvIbk9B5RPUi+R1/BQ95l66Ua/XBlXYd4rtYrf6lHnssVRRRsA/NcSuR5fRpSaBLtfvnKgIAmzyVsGSUwrmJFS5qd4DLoK66Bj0/9I5BusyqHeKgiwLaZs2/7bmPFTm4B+K2b/QZk29mNSVIGNVdKldswlkFIobelZK2TxJthQ2RbKLNKXpNJ60nHgEHNN9hJUrExI1HUu7Zo062uQ+LMfHYPzYdn6Ygwt0+IUc90G0HFahIUk9hscJZGM0HO/LuHV+mEKSzYfcOfsZp4+p2dlWFipt5HmHZel13whZfOdnyYCvEs51noDRaOrbDrDaN49aaRwemz19WWhC4o7Bp6Q1Z/tXCYuIUPoUdjO4DdLa475/iPBeBnOnLg+K5xeKydq+mmpwzTecQpJS1AW5xy43wQpvD+s7UKJdCxdV3gggUV9tRLXXsPXXBAYXhB1f7XmcapOG/cLa88wgto40CMXbC9QReLIAOdvcQ9u1W4kfrrAC+C8mqt3pf6E=
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  on:
+    # There can be some targets that are tested using the stable
+    # and nightly channels. This condition makes sure there is only one release
+    # for such targets and that's generated using the stable channel
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+  provider: releases
+  skip_cleanup: true
+
+cache: cargo
+before_cache:
+  # Travis can't cache files that are not readable by "others"
+  - chmod -R a+r $HOME/.cargo
+
+branches:
+  only:
+    # release tags
+    - /^v\d+\.\d+\.\d+.*$/
+    - master
+
+notifications:
+  email:
+    on_success: never
