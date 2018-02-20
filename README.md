@@ -42,3 +42,5 @@ To try it, clone this repository and build with `cargo build --release` or insta
 Thanks:
 
 - @gaborigloi for porting the library to `quicli`
+- @Pistahh for fixing the `jq` example and comments on the code
+
