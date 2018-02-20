@@ -1,11 +1,11 @@
 Minimal CLI client for xapi rpc calls.
-The ouptu is in json, so can be piped to `jq` or other json tools for further filtering.
-For example you can get the `uuid` and `name_label` of all the VMs with:
+The output is in json, so it can be piped to `jq` or other json tools for further filtering.
+For example you can get the `uuid` and `name_label` of all VMs with:
 ```bash
 xapirpc VM get_all_records | jq '.[]|select(.is_a_template==false)|{uuid, name_label}'
 ```
 
-There are a few optional flags available to customise the usage:
+There are a few flags available for customisation:
 ```bash
 $ xapirpc --help
 Minimal xapi xmlrpc CLI client
@@ -25,7 +25,7 @@ ARGS:
     <args>...    Ordered list of arguments for the call (if any). Do not pass a session.
 ```
 
-The `host`, `user` and `pass` value can be manually configured by creating
+The `host`, `user`, and `pass` value can be manually configured by creating
 ```
 $HOME/.config/xapirpc/config.prefs.json
 ```
