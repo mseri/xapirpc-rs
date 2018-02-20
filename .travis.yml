@@ -9,6 +9,7 @@ sudo: required
 env:
   global:
     - CRATE_NAME=xapirpc
+    - DISABLE_TESTS=true
 
 matrix:
   include:
@@ -115,7 +116,7 @@ before_cache:
 branches:
   only:
     # release tags
-    - /^v\d+\.\d+\.\d+.*$/
+    - /^v?\d+\.\d+\.\d+.*$/
     - master
 
 notifications:
