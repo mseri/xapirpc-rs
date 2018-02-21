@@ -158,22 +158,22 @@ main!(|cli_args: Cli| {
     let host = cli_args
         .host
         .as_ref()
-        .or(preferences.get("host"))
         .or(host_env.as_ref())
+        .or(preferences.get("host"))
         .unwrap_or(&host_default);
     let user_env = env::var("XAPI_USER").ok();
     let user = cli_args
         .user
         .as_ref()
-        .or(preferences.get("user"))
         .or(user_env.as_ref())
+        .or(preferences.get("user"))
         .unwrap_or(&user_default);
     let pass_env = env::var("XAPI_PASSWORD").ok();
     let pass = cli_args
         .pass
         .as_ref()
-        .or(preferences.get("pass"))
         .or(pass_env.as_ref())
+        .or(preferences.get("pass"))
         .unwrap_or(&pass_default);
 
     let class = cli_args.class;
