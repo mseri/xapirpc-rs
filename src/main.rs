@@ -53,12 +53,7 @@ fn format_datetime(date_time: &iso8601::DateTime) -> String {
     match date_time.date {
         iso8601::Date::YMD { year, month, day } => format!(
             "{:04}{:02}{:02}T{:02}:{:02}:{:02}",
-            year,
-            month,
-            day,
-            hour,
-            minute,
-            second
+            year, month, day, hour, minute, second
         ),
         _ => unimplemented!(),
     }
