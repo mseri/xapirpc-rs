@@ -10,6 +10,7 @@ extern crate serde_json;
 extern crate xmlrpc;
 
 use std::env;
+use std::error::Error;
 use std::str::FromStr;
 
 use base64::encode;
@@ -63,6 +64,14 @@ fn format_datetime(date_time: &iso8601::DateTime) -> String {
     }
 }
 
+fn get(req: &Request, client: &Client, host: &str) -> Value {
+    match req.call(client, host) {
+        Ok(Ok(val)) => val,
+        Ok(Err(e)) => panic!("Unexpected xmlrpc error: {:?}", e),
+        Err(err) => panic!("{}", err.description()),
+    }
+}
+
 trait Helpers {
     fn get_value(&self) -> &xmlrpc::Value;
     fn extract_session(self) -> String;
@@ -70,13 +79,14 @@ trait Helpers {
 }
 
 impl Helpers for xmlrpc::Value {
-    // The two functions below should be changed to return a Result
-    // instead of panicking
     fn get_value(&self) -> &Value {
-        if let Value::Struct(ref response) = *self {
-            &response["Value"]
-        } else {
-            panic!("Malformed response: {:?}", self)
+        match *self {
+            Value::Struct(ref response) if response.contains_key("Value") => &response["Value"],
+            Value::Struct(ref response) if response.contains_key("ErrorDescription") => panic!(
+                "XML Rpc error: {}",
+                serde_json::to_string(&response["ErrorDescription"].as_json()).unwrap()
+            ),
+            _ => panic!("Unkown error: {:?}", self),
         }
     }
 
@@ -182,14 +192,12 @@ main!(|cli_args: Cli| {
 
     let client = Client::new();
 
-    // Let's panic all the way!!!
-    let hopefully_session = Request::new("session.login_with_password")
-        .arg(user.as_str()).arg(pass.as_str())
-        .call(&client, &host)
-        .unwrap()  // Response
-        .unwrap(); // Result
+    // Get the session
+    let req = Request::new("session.login_with_password")
+        .arg(user.as_str())
+        .arg(pass.as_str()); // Result
+    let hopefully_session = get(&req, &client, &host);
     let session = hopefully_session.extract_session();
-    //println!("Session: \"{}\"", session);
 
     // Prepare the xmlrpc command
     let cmd = format!("{}.{}", class, method);
@@ -198,9 +206,7 @@ main!(|cli_args: Cli| {
         req = req.arg(arg);
     }
 
-    // Again, we unwrap the Response and then the Result
-    // don't care about the panics right now.
-    let response = req.call(&client, &host).unwrap().unwrap();
+    let response = get(&req, &client, &host);
 
     let json_value = response.get_value().as_json();
     let j = if cli_args.compact {
@@ -210,6 +216,7 @@ main!(|cli_args: Cli| {
     };
     println!("{}", j.unwrap());
 
+    // Logout to release the session
     let _ = Request::new("session.logout")
         .arg(session)
         .call(&client, &host);
