@@ -38,7 +38,17 @@ fn as_value_heuristic(value: &str) -> Value {
         return Value::Double(f);
     }
 
-    return Value::String(value.to_string());
+    Value::String(value.to_string())
+}
+
+fn as_url(host: &str) -> String {
+    let prefix = if !(host.starts_with("https:") || host.starts_with("http:")) {
+        "https://"
+    } else {
+        ""
+    };
+
+    format!("{}{}", prefix, host)
 }
 
 // From xmlrpc-rs' utils.rs
@@ -160,12 +170,14 @@ main!(|cli_args: Cli| {
     let pass_default = "guest".to_string();
 
     let host_env = env::var("XAPI_HOST").ok();
-    let host = cli_args
-        .host
-        .as_ref()
-        .or(host_env.as_ref())
-        .or(preferences.get("host"))
-        .unwrap_or(&host_default);
+    let host = as_url(
+        cli_args
+            .host
+            .as_ref()
+            .or(host_env.as_ref())
+            .or(preferences.get("host"))
+            .unwrap_or(&host_default),
+    );
     let user_env = env::var("XAPI_USER").ok();
     let user = cli_args
         .user
