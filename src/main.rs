@@ -16,7 +16,7 @@ use std::str::FromStr;
 use base64::encode;
 use preferences::{AppInfo, Preferences, PreferencesMap};
 use quicli::prelude::*;
-use reqwest::Client;
+use reqwest::{Client, ClientBuilder};
 use serde_json::value as json;
 use xmlrpc::{Request, Value};
 
@@ -152,6 +152,9 @@ struct Cli {
     /// Output the result as non-prettified json
     #[structopt(long = "compact")]
     compact: bool,
+    /// Disable ssl certificate verification
+    #[structopt(long = "no-ssl")]
+    disable_ssl_check: bool,
     /// Case sensitive value for the xapi class
     class: String,
     /// Case sensitive value for the xapi method
@@ -197,7 +200,13 @@ main!(|cli_args: Cli| {
     let method = cli_args.method;
     let args = cli_args.args;
 
-    let client = Client::new();
+    let client = {
+        let mut client = ClientBuilder::new();
+        if cli_args.disable_ssl_check {
+            client.danger_disable_certificate_verification_entirely();
+        }
+        client.build()?
+    };
 
     // Get the session
     let req = Request::new("session.login_with_password")
