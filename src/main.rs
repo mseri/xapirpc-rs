@@ -202,7 +202,7 @@ main!(|cli_args: Cli| {
     // Get the session
     let req = Request::new("session.login_with_password")
         .arg(user.as_str())
-        .arg(pass.as_str()); // Result
+        .arg(pass.as_str());
     let hopefully_session = get(&req, &client, &host);
     let session = hopefully_session.extract_session();
 
@@ -217,11 +217,11 @@ main!(|cli_args: Cli| {
 
     let json_value = response.get_value().as_json();
     let j = if cli_args.compact {
-        serde_json::to_string(&json_value)
+        serde_json::to_string(&json_value)?
     } else {
-        serde_json::to_string_pretty(&json_value)
+        serde_json::to_string_pretty(&json_value)?
     };
-    println!("{}", j.unwrap());
+    println!("{}", j);
 
     // Logout to release the session
     let _ = Request::new("session.logout")
