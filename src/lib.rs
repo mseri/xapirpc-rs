@@ -26,7 +26,7 @@ pub struct Config {
     pub pass: String,
 }
 
-// Xapi RPC client. Makes sure of creating, holding and closing the sessions.
+/// Xapi RPC client. Makes sure of creating, holding and closing the sessions.
 pub struct XapiRpc {
     host: String,
     session: String,
@@ -118,13 +118,14 @@ fn get(req: &Request, client: &Client, host: &str) -> XapiResult<xmlrpc::Value> 
     }
 }
 
-pub trait Helpers {
+pub trait RpcHelpers {
+    /// Get the "Value" from a RPC response
     fn rpc_value(&self) -> XapiResult<&xmlrpc::Value>;
+    /// Convert the RPC value to a serde json value
     fn as_json(&self) -> json::Value;
 }
 
-impl Helpers for xmlrpc::Value {
-    /// Get the "Value" from an XML RPC response
+impl RpcHelpers for xmlrpc::Value {
     fn rpc_value(&self) -> XapiResult<&xmlrpc::Value> {
         match *self {
             Value::Struct(ref response) if response.contains_key("Value") => Ok(&response["Value"]),
@@ -138,7 +139,6 @@ impl Helpers for xmlrpc::Value {
         }
     }
 
-    /// Convert the XML RPC value to a serde json value
     fn as_json(&self) -> json::Value {
         match *self {
             Value::Int(i) => {
