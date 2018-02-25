@@ -1,7 +1,6 @@
 extern crate base64;
 
 extern crate iso8601;
-extern crate preferences;
 extern crate reqwest;
 extern crate serde_json;
 
@@ -10,69 +9,19 @@ extern crate simple_error;
 
 extern crate xmlrpc;
 
-use std::env;
 use std::error::Error;
 use std::str::FromStr;
 
 use base64::encode;
-use preferences::{AppInfo, Preferences, PreferencesMap};
 use reqwest::Client;
 use serde_json::value as json;
 use xmlrpc::{Request, Value};
-
-const APP_INFO: AppInfo = AppInfo {
-    name: "xapirpc",
-    author: "xapirpc",
-};
 
 pub struct Config {
     pub host: String,
     pub user: String,
     pub pass: String,
     pub compact: bool,
-}
-
-impl Config {
-    pub fn new(
-        host: &Option<String>,
-        user: &Option<String>,
-        pass: &Option<String>,
-        compact: bool,
-    ) -> Config {
-        let preferences = PreferencesMap::<String>::load(&APP_INFO, "config")
-            .unwrap_or(PreferencesMap::<String>::new());
-
-        let host_default = "http://127.0.0.1".to_string();
-        let user_default = "guest".to_string();
-        let pass_default = "guest".to_string();
-
-        let host_env = env::var("XAPI_HOST").ok();
-        let host = as_url(
-            host.as_ref()
-                .or(host_env.as_ref())
-                .or(preferences.get("host"))
-                .unwrap_or(&host_default),
-        );
-        let user_env = env::var("XAPI_USER").ok();
-        let user = user.as_ref()
-            .or(user_env.as_ref())
-            .or(preferences.get("user"))
-            .unwrap_or(&user_default)
-            .clone();
-        let pass_env = env::var("XAPI_PASSWORD").ok();
-        let pass = pass.as_ref()
-            .or(pass_env.as_ref())
-            .or(preferences.get("pass"))
-            .unwrap_or(&pass_default)
-            .clone();
-
-        Config {
-            host,
-            user,
-            pass,
-            compact,
-        }
-    }
 }
 
 pub fn as_value_heuristic(value: &str) -> Value {
@@ -89,16 +38,6 @@ pub fn as_value_heuristic(value: &str) -> Value {
     }
 
     Value::String(value.to_string())
-}
-
-fn as_url(host: &str) -> String {
-    let prefix = if !(host.starts_with("https:") || host.starts_with("http:")) {
-        "https://"
-    } else {
-        ""
-    };
-
-    format!("{}{}", prefix, host)
 }
 
 // From xmlrpc-rs' utils.rs
@@ -195,8 +134,8 @@ pub fn run(config: &Config, class: &str, method: &str, args: Vec<Value>) -> Resu
 
     // Get the session
     let req = Request::new("session.login_with_password")
-        .arg(config.user.as_str())
-        .arg(config.pass.as_str());
+        .arg(config.user.clone())
+        .arg(config.pass.clone());
     let session = get(&req, &client, &host)?.extract_session()?;
 
     // Prepare the xmlrpc command
