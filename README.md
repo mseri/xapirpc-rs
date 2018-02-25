@@ -1,5 +1,7 @@
 Minimal CLI client for xapi rpc calls.
-The output is in json, so it can be piped to `jq` or other json tools for further filtering.
+The crate exports also a library `xapirpc` crate that exposes some potentially useful helpers to create a xapi client. The executable provides an example of use.
+
+The output of the CLI tool is in json, so it can be piped to `jq` or other json tools for further filtering.
 For example you can get the `uuid` and `name_label` of all VMs with:
 ```bash
 xapirpc VM get_all_records | jq '.[]|select(.is_a_template==false)|{uuid, name_label}'
@@ -37,7 +39,6 @@ $ cat $HOME/.config/xapirpc/config.prefs.json
 
 To try it, clone this repository and build with `cargo build --release` or install it using `cargo install xapirpc --force`.
 
-The crate exports also a `xapirpc` crate that exposes some potentially useful helpers to create a xapi client. The executable provides an example of use.
 # Acknowledgements
 
 Thanks:
