@@ -3,6 +3,7 @@ extern crate preferences;
 #[macro_use]
 extern crate quicli;
 
+extern crate serde_json;
 extern crate xapirpc;
 extern crate xmlrpc;
 
@@ -10,7 +11,8 @@ use std::process;
 
 use preferences::{AppInfo, Preferences, PreferencesMap};
 use quicli::prelude::*;
-use xapirpc::Config;
+
+use xapirpc::{Config, XapiRpc};
 
 const HOST: &'static str = "http://127.0.0.1";
 const USER: &'static str = "guest";
@@ -63,14 +65,32 @@ main!(|cli_args: Cli| {
 
     let config = get_config(&cli_args, &env, &preferences);
 
+    let compact = cli_args.compact;
+
     let class = cli_args.class;
     let method = cli_args.method;
     let args = cli_args.args;
 
-    if let Err(e) = xapirpc::run(&config, &class, &method, args) {
-        eprintln!("Error: {}", e);
+    let xapi_session = XapiRpc::new(&config).unwrap_or_else(|e| {
+        eprintln!("Error preparing the xapi session: {}", e);
         process::exit(1);
-    }
+    });
+
+    let response = xapi_session
+        .call(&class, &method, args)
+        .and_then(|v| {
+            if compact {
+                serde_json::to_string(&v)
+            } else {
+                serde_json::to_string_pretty(&v)
+            }.map_err(|err| From::from(err))
+        })
+        .unwrap_or_else(|e| {
+            eprintln!("Error: {}", e);
+            process::exit(1);
+        });
+
+    println!("{}", response);
 });
 
 /// Get Config cascading the value selection through Cli, Env, and local Preferences
@@ -100,14 +120,7 @@ fn get_config<'a>(cli_args: &'a Cli, env: &'a Env, preferences: &'a PreferencesM
         .unwrap_or(&PASS.to_string())
         .clone();
 
-    let compact = cli_args.compact;
-
-    Config {
-        host,
-        user,
-        pass,
-        compact,
-    }
+    Config { host, user, pass }
 }
 
 /// Backward compatible, kind of, host to url

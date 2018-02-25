@@ -17,13 +17,65 @@ use reqwest::Client;
 use serde_json::value as json;
 use xmlrpc::{Request, Value};
 
+type XapiResult<T> = Result<T, Box<Error>>;
+
+/// Xapi RPC configuration.
 pub struct Config {
     pub host: String,
     pub user: String,
     pub pass: String,
-    pub compact: bool,
 }
 
+// Xapi RPC client. Makes sure of creating, holding and closing the sessions.
+pub struct XapiRpc {
+    host: String,
+    session: String,
+    client: Client,
+}
+
+impl XapiRpc {
+    /// Prepare a xapi session using the login informations from config.
+    pub fn new(config: &Config) -> XapiResult<Self> {
+        let host = config.host.clone();
+        let client = Client::new();
+
+        // Get the session
+        let req = Request::new("session.login_with_password")
+            .arg(config.user.clone())
+            .arg(config.pass.clone());
+        let session = get(&req, &client, &host)?.xapi_session()?;
+
+        Ok(XapiRpc {
+            host,
+            session,
+            client,
+        })
+    }
+
+    /// Perform a Xapi RPC call for class.method using args as arguments
+    pub fn call(&self, class: &str, method: &str, args: Vec<Value>) -> XapiResult<json::Value> {
+        let cmd = format!("{}.{}", class, method);
+        let mut req = Request::new(&cmd).arg(self.session.clone());
+        for arg in args {
+            req = req.arg(arg)
+        }
+
+        let response = get(&req, &self.client, &self.host)?.rpc_value()?.as_json();
+
+        Ok(response)
+    }
+}
+
+// use Drop to close the session on exit
+impl Drop for XapiRpc {
+    fn drop(&mut self) {
+        let _ = Request::new("session.logout")
+            .arg(self.session.clone())
+            .call(&self.client, &self.host);
+    }
+}
+
+/// Helper to automatically convert strings to xmlrpc values trying to infer their types.
 pub fn as_value_heuristic(value: &str) -> Value {
     if let Ok(b) = bool::from_str(value) {
         return Value::Bool(b);
@@ -58,7 +110,7 @@ fn format_datetime(date_time: &iso8601::DateTime) -> String {
     }
 }
 
-fn get(req: &Request, client: &Client, host: &str) -> Result<xmlrpc::Value, Box<Error>> {
+fn get(req: &Request, client: &Client, host: &str) -> XapiResult<xmlrpc::Value> {
     match req.call(client, host) {
         Ok(Ok(val)) => Ok(val),
         Ok(Err(e)) => Err(Box::new(e)),
@@ -67,13 +119,13 @@ fn get(req: &Request, client: &Client, host: &str) -> Result<xmlrpc::Value, Box<
 }
 
 pub trait Helpers {
-    fn get_value(&self) -> Result<&xmlrpc::Value, Box<Error>>;
-    fn extract_session(self) -> Result<String, Box<Error>>;
+    fn rpc_value(&self) -> XapiResult<&xmlrpc::Value>;
     fn as_json(&self) -> json::Value;
 }
 
 impl Helpers for xmlrpc::Value {
-    fn get_value(&self) -> Result<&Value, Box<Error>> {
+    /// Get the "Value" from an XML RPC response
+    fn rpc_value(&self) -> XapiResult<&xmlrpc::Value> {
         match *self {
             Value::Struct(ref response) if response.contains_key("Value") => Ok(&response["Value"]),
             Value::Struct(ref response) if response.contains_key("ErrorDescription") => {
@@ -86,15 +138,7 @@ impl Helpers for xmlrpc::Value {
         }
     }
 
-    fn extract_session(self) -> Result<String, Box<Error>> {
-        let value = self.get_value()?;
-        if let Value::String(ref session) = *value {
-            Ok(session.clone())
-        } else {
-            bail!(format!("Mismatched type: {:?}", value))
-        }
-    }
-
+    /// Convert the XML RPC value to a serde json value
     fn as_json(&self) -> json::Value {
         match *self {
             Value::Int(i) => {
@@ -128,37 +172,18 @@ impl Helpers for xmlrpc::Value {
     }
 }
 
-pub fn run(config: &Config, class: &str, method: &str, args: Vec<Value>) -> Result<(), Box<Error>> {
-    let host = &config.host;
-    let client = Client::new();
+trait SessionHelper {
+    fn xapi_session(self) -> XapiResult<String>;
+}
 
-    // Get the session
-    let req = Request::new("session.login_with_password")
-        .arg(config.user.clone())
-        .arg(config.pass.clone());
-    let session = get(&req, &client, &host)?.extract_session()?;
-
-    // Prepare the xmlrpc command
-    let cmd = format!("{}.{}", class, method);
-    let mut req = Request::new(&cmd).arg(session.clone());
-    for arg in args {
-        req = req.arg(arg)
+impl SessionHelper for xmlrpc::Value {
+    /// Extract the xapi session from a XML RPC response
+    fn xapi_session(self) -> XapiResult<String> {
+        let value = self.rpc_value()?;
+        if let Value::String(ref session) = *value {
+            Ok(session.clone())
+        } else {
+            bail!(format!("Mismatched type: {:?}", value))
+        }
     }
-
-    let response = get(&req, &client, &host)?;
-
-    let json_value = response.get_value()?.as_json();
-    let j = if config.compact {
-        serde_json::to_string(&json_value)?
-    } else {
-        serde_json::to_string_pretty(&json_value)?
-    };
-    println!("{}", j);
-
-    // Logout to release the session
-    let _ = Request::new("session.logout")
-        .arg(session)
-        .call(&client, &host);
-
-    Ok(())
 }
