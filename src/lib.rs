@@ -118,6 +118,7 @@ fn get(req: &Request, client: &Client, host: &str) -> XapiResult<xmlrpc::Value> 
     }
 }
 
+/// Utilities to extract RPC response value and convert them to serde json values
 pub trait RpcHelpers {
     /// Get the "Value" from a RPC response
     fn rpc_value(&self) -> XapiResult<&xmlrpc::Value>;
