@@ -37,6 +37,7 @@ $ cat $HOME/.config/xapirpc/config.prefs.json
 
 To try it, clone this repository and build with `cargo build --release` or install it using `cargo install xapirpc --force`.
 
+The crate exports also a `xapirpc` crate that exposes some potentially useful helpers to create a xapi client. The executable provides an example of use.
 # Acknowledgements
 
 Thanks:

@@ -2,3 +2,6 @@
 - Add support for records and arrays (maybe?)
 - Generate and use typesafe API bindings
 - Add `--no-ssl` flag
+- Cleanup code and make more idiomatic
+- Improve documentation, maybe add tests or doc-tests
+- Reduce allocations and copies where possible
