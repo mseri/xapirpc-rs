@@ -1,3 +1,12 @@
+#xapirpc &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
+
+[Build Status]: https://api.travis-ci.org/mseri/xapirpc-rs.svg?branch=master
+[travis]: https://travis-ci.org/mseri/xapirpc-rs
+[Latest Version]: https://img.shields.io/crates/v/xapirpc.svg
+[crates.io]: https://crates.io/crates/xapirpc
+
+---
+
 Minimal CLI client for xapi rpc calls.
 The crate exports also a library `xapirpc` crate that exposes some potentially useful helpers to create a xapi client. The executable provides an example of use.
 
