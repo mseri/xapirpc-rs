@@ -1,22 +1,29 @@
-#xapirpc &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
+# xapirpc &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
 
 [Build Status]: https://api.travis-ci.org/mseri/xapirpc-rs.svg?branch=master
 [travis]: https://travis-ci.org/mseri/xapirpc-rs
 [Latest Version]: https://img.shields.io/crates/v/xapirpc.svg
 [crates.io]: https://crates.io/crates/xapirpc
 
+Minimal library and CLI client for xapi rpc calls.
+
 ---
 
-Minimal CLI client for xapi rpc calls.
-The crate exports also a library `xapirpc` crate that exposes some potentially useful helpers to create a xapi client. The executable provides an example of use.
+The crate provides a small CLI utility to make RPC calls to xapi, and
+exports a library that exposes some common helpers to create xapi clients
+(see [the documentation on docs.rs](https://docs.rs/xapirpc/)). The
+CLI executable provides an example of use.
 
-The output of the CLI tool is in json, so it can be piped to `jq` or other json tools for further filtering.
-For example you can get the `uuid` and `name_label` of all VMs with:
+The  output of the CLI tool is in json, so it can be piped to `jq` or
+other json tools for further filtering.  For example you can get the
+`uuid` and `name_label` of all VMs with:
+
 ```bash
 xapirpc VM get_all_records | jq '.[]|select(.is_a_template==false)|{uuid, name_label}'
 ```
 
-There are a few flags available for customisation:
+There CLI help should clarify all the supported customisations.
+
 ```bash
 $ xapirpc --help
 Minimal xapi xmlrpc CLI client
