@@ -16,9 +16,9 @@ use std::collections::BTreeMap;
 use base64::encode;
 use reqwest::Client;
 use serde_json::value as json;
-use xmlrpc::{Request, Value};
+use xmlrpc::Request;
 
-type XapiResult<T> = Result<T, Box<Error+Send+Sync>>;
+type XapiResult<T> = Result<T, Box<Error + Send + Sync>>;
 
 /// Xapi RPC configuration.
 pub struct Config {
@@ -54,7 +54,12 @@ impl XapiRpc {
     }
 
     /// Perform a Xapi RPC call for class.method using args as arguments
-    pub fn call(&self, class: &str, method: &str, args: Vec<Value>) -> XapiResult<json::Value> {
+    pub fn call(
+        &self,
+        class: &str,
+        method: &str,
+        args: Vec<xmlrpc::Value>,
+    ) -> XapiResult<json::Value> {
         let cmd = format!("{}.{}", class, method);
         let mut req = Request::new(&cmd).arg(self.session.clone());
         for arg in args {
@@ -77,20 +82,20 @@ impl Drop for XapiRpc {
 }
 
 /// Helper to automatically convert strings to xmlrpc values trying to infer their types.
-pub fn as_value_heuristic(value: &str) -> Value {
+pub fn as_value_heuristic(value: &str) -> xmlrpc::Value {
     if let Ok(b) = bool::from_str(value) {
-        return Value::Bool(b);
+        return xmlrpc::Value::Bool(b);
     }
 
     if let Ok(i) = i64::from_str(value) {
-        return Value::Int64(i);
+        return xmlrpc::Value::Int64(i);
     }
 
     if let Ok(f) = f64::from_str(value) {
-        return Value::Double(f);
+        return xmlrpc::Value::Double(f);
     }
 
-    Value::String(value.to_string())
+    xmlrpc::Value::String(value.to_string())
 }
 
 // From xmlrpc-rs' utils.rs
@@ -127,6 +132,8 @@ pub trait RpcHelpers {
     fn from_json(value: &json::Value) -> xmlrpc::Value;
     /// Convert the RPC value to a serde json value
     fn as_json(&self) -> json::Value;
+    /// Get the "Value" field from a RPC response
+    fn rpc_value(&self) -> XapiResult<&xmlrpc::Value>;
 }
 
 impl RpcHelpers for xmlrpc::Value {
@@ -159,39 +166,41 @@ impl RpcHelpers for xmlrpc::Value {
 
     fn as_json(&self) -> json::Value {
         match *self {
-            Value::Int(i) => {
+            xmlrpc::Value::Int(i) => {
                 let i = json::Number::from_f64(i as f64).unwrap();
                 json::Value::Number(i)
             }
-            Value::Int64(i) => {
+            xmlrpc::Value::Int64(i) => {
                 let i = json::Number::from_f64(i as f64).unwrap();
                 json::Value::Number(i)
             }
-            Value::Bool(b) => json::Value::Bool(b),
-            Value::String(ref s) => json::Value::String(s.clone()),
-            Value::Double(d) => {
+            xmlrpc::Value::Bool(b) => json::Value::Bool(b),
+            xmlrpc::Value::String(ref s) => json::Value::String(s.clone()),
+            xmlrpc::Value::Double(d) => {
                 let d = json::Number::from_f64(d).unwrap();
                 json::Value::Number(d)
             }
-            Value::DateTime(date_time) => json::Value::String(format_datetime(&date_time)),
-            Value::Base64(ref data) => json::Value::String(encode(data)),
-            Value::Struct(ref map) => {
+            xmlrpc::Value::DateTime(date_time) => json::Value::String(format_datetime(&date_time)),
+            xmlrpc::Value::Base64(ref data) => json::Value::String(encode(data)),
+            xmlrpc::Value::Struct(ref map) => {
                 let mut jmap = serde_json::Map::with_capacity(map.len());
                 for (ref name, ref v) in map {
                     jmap.insert(name.to_string().clone(), v.as_json());
                 }
                 json::Value::Object(jmap)
             }
-            Value::Array(ref array) => {
+            xmlrpc::Value::Array(ref array) => {
                 json::Value::Array(array.iter().map(|v| v.as_json()).collect())
             }
             xmlrpc::Value::Nil => json::Value::Null,
         }
     }
-    
+
     fn rpc_value(&self) -> XapiResult<&xmlrpc::Value> {
         match *self {
-            xmlrpc::Value::Struct(ref response) if response.contains_key("Value") => Ok(&response["Value"]),
+            xmlrpc::Value::Struct(ref response) if response.contains_key("Value") => {
+                Ok(&response["Value"])
+            }
             xmlrpc::Value::Struct(ref response) if response.contains_key("ErrorDescription") => {
                 bail!(format!(
                     "XML Rpc error: {}",
@@ -211,7 +220,7 @@ impl SessionHelper for xmlrpc::Value {
     /// Extract the xapi session from a XML RPC response
     fn xapi_session(self) -> XapiResult<String> {
         let value = self.rpc_value()?;
-        if let Value::String(ref session) = *value {
+        if let xmlrpc::Value::String(ref session) = *value {
             Ok(session.clone())
         } else {
             bail!(format!("Mismatched type: {:?}", value))
