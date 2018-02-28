@@ -1,4 +1,4 @@
-# xapirpc &emsp; [![Build Status]][travis] [![docs.rs](Doc Badge)](docs) [![Latest Version]][crates.io]
+# xapirpc &emsp; [![Build Status]][travis] [![Doc Badge]][docs] [![Latest Version]][crates.io]
 
 [Build Status]: https://api.travis-ci.org/mseri/xapirpc-rs.svg?branch=master
 [travis]: https://travis-ci.org/mseri/xapirpc-rs
