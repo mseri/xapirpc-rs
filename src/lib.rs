@@ -17,7 +17,7 @@ use reqwest::Client;
 use serde_json::value as json;
 use xmlrpc::{Request, Value};
 
-type XapiResult<T> = Result<T, Box<Error>>;
+type XapiResult<T> = Result<T, Box<Error+Send+Sync>>;
 
 /// Xapi RPC configuration.
 pub struct Config {
