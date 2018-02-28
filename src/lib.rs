@@ -11,6 +11,7 @@ extern crate xmlrpc;
 
 use std::error::Error;
 use std::str::FromStr;
+use std::collections::BTreeMap;
 
 use base64::encode;
 use reqwest::Client;
@@ -120,23 +121,39 @@ fn get(req: &Request, client: &Client, host: &str) -> XapiResult<xmlrpc::Value> 
 
 /// Utilities to extract RPC response value and convert them to serde json values
 pub trait RpcHelpers {
-    /// Get the "Value" from a RPC response
-    fn rpc_value(&self) -> XapiResult<&xmlrpc::Value>;
+    /// Translate the json value into an equivalent xmlrpc value.
+    /// This is not 1-1, as we have no reasonable way to detect
+    /// base64, date or i32 values from json.
+    fn from_json(value: &json::Value) -> xmlrpc::Value;
     /// Convert the RPC value to a serde json value
     fn as_json(&self) -> json::Value;
 }
 
 impl RpcHelpers for xmlrpc::Value {
-    fn rpc_value(&self) -> XapiResult<&xmlrpc::Value> {
-        match *self {
-            Value::Struct(ref response) if response.contains_key("Value") => Ok(&response["Value"]),
-            Value::Struct(ref response) if response.contains_key("ErrorDescription") => {
-                bail!(format!(
-                    "XML Rpc error: {}",
-                    serde_json::to_string(&response["ErrorDescription"].as_json())?
-                ))
+    fn from_json(value: &json::Value) -> xmlrpc::Value {
+        match *value {
+            json::Value::Number(ref i) if i.is_i64() => {
+                let n = i.as_i64().unwrap();
+                xmlrpc::Value::Int64(n)
             }
-            _ => bail!(format!("Unkown error: {:?}", self)),
+            // not an i64, we make it into f64
+            json::Value::Number(ref i) => {
+                let n = i.as_f64().unwrap();
+                xmlrpc::Value::Double(n)
+            }
+            json::Value::Bool(b) => xmlrpc::Value::Bool(b),
+            json::Value::String(ref s) => xmlrpc::Value::String(s.clone()),
+            json::Value::Object(ref jmap) => {
+                let mut map = BTreeMap::new();
+                for (ref name, ref v) in jmap {
+                    map.insert(name.to_string().clone(), Self::from_json(v));
+                }
+                xmlrpc::Value::Struct(map)
+            }
+            json::Value::Array(ref array) => {
+                xmlrpc::Value::Array(array.iter().map(|v| Self::from_json(v)).collect())
+            }
+            json::Value::Null => xmlrpc::Value::Nil,
         }
     }
 
@@ -168,7 +185,20 @@ impl RpcHelpers for xmlrpc::Value {
             Value::Array(ref array) => {
                 json::Value::Array(array.iter().map(|v| v.as_json()).collect())
             }
-            Value::Nil => json::Value::Null,
+            xmlrpc::Value::Nil => json::Value::Null,
+        }
+    }
+    
+    fn rpc_value(&self) -> XapiResult<&xmlrpc::Value> {
+        match *self {
+            xmlrpc::Value::Struct(ref response) if response.contains_key("Value") => Ok(&response["Value"]),
+            xmlrpc::Value::Struct(ref response) if response.contains_key("ErrorDescription") => {
+                bail!(format!(
+                    "XML Rpc error: {}",
+                    serde_json::to_string(&response["ErrorDescription"].as_json())?
+                ))
+            }
+            _ => bail!(format!("Unkown error: {:?}", self)),
         }
     }
 }
