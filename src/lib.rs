@@ -44,7 +44,8 @@ impl XapiRpc {
         let req = Request::new("session.login_with_password")
             .arg(config.user.clone())
             .arg(config.pass.clone());
-        let session = get(&req, &client, &host)?.xapi_session()?;
+        let transport = client.post(&host);
+        let session = req.call(transport)?.xapi_session()?;
 
         Ok(XapiRpc {
             host,
@@ -66,7 +67,8 @@ impl XapiRpc {
             req = req.arg(arg)
         }
 
-        let response = get(&req, &self.client, &self.host)?.rpc_value()?.as_json();
+        let transport = self.client.post(&self.host);
+        let response = req.call(transport)?.rpc_value()?.as_json();
 
         Ok(response)
     }
@@ -75,9 +77,10 @@ impl XapiRpc {
 // use Drop to close the session on exit
 impl Drop for XapiRpc {
     fn drop(&mut self) {
+        let transport = self.client.post(&self.host);
         let _ = Request::new("session.logout")
             .arg(self.session.clone())
-            .call(&self.client, &self.host);
+            .call(transport);
     }
 }
 
@@ -113,14 +116,6 @@ fn format_datetime(date_time: &iso8601::DateTime) -> String {
             year, month, day, hour, minute, second
         ),
         _ => unimplemented!(),
-    }
-}
-
-fn get(req: &Request, client: &Client, host: &str) -> XapiResult<xmlrpc::Value> {
-    match req.call(client, host) {
-        Ok(Ok(val)) => Ok(val),
-        Ok(Err(e)) => Err(Box::new(e)),
-        Err(err) => Err(Box::new(err)),
     }
 }
 
