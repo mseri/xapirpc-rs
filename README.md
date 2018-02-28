@@ -1,10 +1,11 @@
-# xapirpc &emsp; [![Build Status]][travis] [![Latest Version]][crates.io]
+# xapirpc &emsp; [![Build Status]][travis] [![docs.rs](Doc Badge)](docs) [![Latest Version]][crates.io]
 
 [Build Status]: https://api.travis-ci.org/mseri/xapirpc-rs.svg?branch=master
 [travis]: https://travis-ci.org/mseri/xapirpc-rs
 [Latest Version]: https://img.shields.io/crates/v/xapirpc.svg
 [crates.io]: https://crates.io/crates/xapirpc
-
+[Doc Badge]: https://docs.rs/xapirpc/badge.svg
+[docs]: https://docs.rs/xapirpc/
 Minimal library and CLI client for xapi rpc calls.
 
 ---
