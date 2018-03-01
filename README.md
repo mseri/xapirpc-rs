@@ -6,11 +6,12 @@
 [crates.io]: https://crates.io/crates/xapirpc
 [Doc Badge]: https://docs.rs/xapirpc/badge.svg
 [docs]: https://docs.rs/xapirpc/
-Minimal library and CLI client for xapi rpc calls.
+Minimal library and CLI client for [xapi](https://github.com/xapi-project/xen-api) rpc calls.
 
 ---
 
-The crate provides a small CLI utility to make RPC calls to xapi, and
+The crate provides a small CLI utility to make RPC calls to
+[xapi](https://github.com/xapi-project/xen-api), and
 exports a library that exposes some common helpers to create xapi clients
 (see [the documentation on docs.rs](https://docs.rs/xapirpc/)). The
 CLI executable provides an example of use.
